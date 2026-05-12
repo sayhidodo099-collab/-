@@ -3,7 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <title>🚗 سوق طولقة السيارات</title>
 
 <style>
@@ -26,11 +25,7 @@ position:sticky;
 top:0;
 }
 
-.container{
-max-width:1100px;
-margin:auto;
-padding:15px;
-}
+.container{max-width:1100px;margin:auto;padding:15px;}
 
 .box{
 background:#1e293b;
@@ -76,9 +71,7 @@ cursor:pointer;
 transition:0.2s;
 }
 
-.car:hover{
-transform:scale(1.03);
-}
+.car:hover{transform:scale(1.03);}
 
 .car img{
 width:100%;
@@ -86,19 +79,10 @@ height:170px;
 object-fit:cover;
 }
 
-.car-body{
-padding:10px;
-}
+.car-body{padding:10px;}
 
-.price{
-color:#22c55e;
-font-weight:bold;
-}
-
-.small{
-color:#cbd5e1;
-font-size:13px;
-}
+.price{color:#22c55e;font-weight:bold;}
+.small{color:#cbd5e1;font-size:13px;}
 </style>
 </head>
 
@@ -108,7 +92,6 @@ font-size:13px;
 
 <div class="container">
 
-<!-- حساب -->
 <div class="box">
 <h3>👤 الحساب</h3>
 <input id="email" placeholder="Email">
@@ -119,18 +102,15 @@ font-size:13px;
 <button onclick="login()">دخول</button>
 </div>
 
-<!-- بحث -->
 <div class="box">
-<h3>🔍 بحث وفلترة</h3>
-<input id="search" placeholder="ابحث عن سيارة..." onkeyup="render()">
+<h3>🔍 بحث</h3>
+<input id="search" placeholder="ابحث..." onkeyup="render()">
 <input id="min" placeholder="أقل سعر" onkeyup="render()">
 <input id="max" placeholder="أعلى سعر" onkeyup="render()">
 </div>
 
-<!-- إضافة -->
 <div class="box">
 <h3>🚘 إضافة سيارة</h3>
-
 <input id="name" placeholder="اسم السيارة">
 <input id="price" placeholder="السعر">
 <input id="city" placeholder="المدينة">
@@ -151,12 +131,12 @@ font-size:13px;
 
 <script>
 const firebaseConfig = {
-apiKey: "AIzaSyA_gDWHVyimHWnTXxwQ0IQ83PIofcxdChU",
-authDomain: "cars-market-72a30.firebaseapp.com",
-projectId: "cars-market-72a30",
-storageBucket: "cars-market-72a30.appspot.com",
-messagingSenderId: "1081449779984",
-appId: "1:1081449779984:web:82ee9b6290ce10926ecb95"
+apiKey:"AIzaSyA_gDWHVyimHWnTXxwQ0IQ83PIofcxdChU",
+authDomain:"cars-market-72a30.firebaseapp.com",
+projectId:"cars-market-72a30",
+storageBucket:"cars-market-72a30.appspot.com",
+messagingSenderId:"1081449779984",
+appId:"1:1081449779984:web:82ee9b6290ce10926ecb95"
 };
 
 firebase.initializeApp(firebaseConfig);
@@ -165,101 +145,82 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 const storage = firebase.storage();
 
-let currentUser = null;
-let username = "";
+let currentUser=null;
+let currentUserName="";
 
-auth.onAuthStateChanged(u=>{
-currentUser = u;
-});
-
-// إنشاء حساب
 function signup(){
 auth.createUserWithEmailAndPassword(email.value,pass.value)
 .then(u=>{
-username = document.getElementById("username").value;
+currentUser=u.user;
+currentUserName=username.value;
 alert("تم إنشاء الحساب");
 });
 }
 
-// دخول
 function login(){
 auth.signInWithEmailAndPassword(email.value,pass.value)
-.then(()=>{
+.then(u=>{
+currentUser=u.user;
+currentUserName=username.value;
 alert("تم الدخول");
 });
 }
 
-// رفع صورة
 async function upload(file){
-let ref = storage.ref("cars/"+Date.now()+file.name);
+let ref=storage.ref("cars/"+Date.now()+file.name);
 await ref.put(file);
 return await ref.getDownloadURL();
 }
 
-// إضافة سيارة
 async function addCar(){
+if(!currentUser){alert("سجل دخول");return;}
 
-if(!currentUser){
-alert("سجل دخول");
-return;
-}
+let file=document.getElementById("file").files[0];
+let img="";
 
-let file = document.getElementById("file").files[0];
-let img = "";
+if(file) img=await upload(file);
 
-if(file){
-img = await upload(file);
-}
-
-db.collection("cars").add({
+await db.collection("cars").add({
 name:name.value,
 price:Number(price.value),
 city:city.value,
 img:img,
 time:Date.now(),
-ownerId:currentUser.uid,
-ownerName:username
+ownerName:currentUserName
 });
 
-alert("تم النشر 🚗");
+alert("تم النشر");
 }
 
-// فتح تفاصيل
-function openCar(c){
-localStorage.setItem("car",JSON.stringify(c));
-window.location.href="car.html";
+function openCar(id){
+window.location.href="car.html?id="+id;
 }
 
-// عرض
-let allCars = [];
+let allCars=[];
 
 db.collection("cars").orderBy("time","desc")
 .onSnapshot(snap=>{
 allCars=[];
 snap.forEach(d=>{
-allCars.push(d.data());
+allCars.push({id:d.id,...d.data()});
 });
 render();
 });
 
 function render(){
 
-let min = Number(document.getElementById("min").value)||0;
-let max = Number(document.getElementById("max").value)||999999999;
-let search = document.getElementById("search").value.toLowerCase();
+let min=Number(document.getElementById("min").value)||0;
+let max=Number(document.getElementById("max").value)||999999999;
+let search=document.getElementById("search").value.toLowerCase();
 
 cars.innerHTML="";
 
 allCars
-.filter(c=>
-c.price>=min &&
-c.price<=max &&
-c.name.toLowerCase().includes(search)
-)
+.filter(c=>c.price>=min && c.price<=max && c.name.toLowerCase().includes(search))
 .forEach(c=>{
 
-cars.innerHTML += `
-<div class="car" onclick='openCar(${JSON.stringify(c)})'>
+cars.innerHTML+=`
+<div class="car" onclick="openCar('${c.id}')">
 
 <img src="${c.img || 'https://images.unsplash.com/photo-1503376780353-7e6692767b70'}">
 
@@ -267,12 +228,11 @@ cars.innerHTML += `
 <h3>${c.name}</h3>
 <div class="price">${c.price} دج</div>
 <div class="small">📍 ${c.city}</div>
+<div class="small">👤 ${c.ownerName || 'مستخدم'}</div>
 </div>
 
-</div>
-`;
+</div>`;
 });
-
 }
 </script>
 
