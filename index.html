@@ -1,5 +1,97 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<title>سوق السيارات V2 🔥</title>
+
+<style>
+body{
+  font-family: Arial;
+  background:#0f172a;
+  color:white;
+  margin:0;
+  padding:20px;
+}
+
+.container{max-width:600px;margin:auto;}
+
+input{
+  width:100%;
+  padding:10px;
+  margin:5px 0;
+  border:none;
+  border-radius:8px;
+}
+
+button{
+  width:100%;
+  padding:10px;
+  margin-top:5px;
+  border:none;
+  border-radius:8px;
+  background:#22c55e;
+  color:white;
+  font-weight:bold;
+}
+
+.car{
+  background:#1e293b;
+  padding:10px;
+  margin-top:10px;
+  border-radius:10px;
+}
+
+.comment{
+  background:#334155;
+  padding:5px;
+  margin-top:5px;
+  border-radius:6px;
+  font-size:14px;
+}
+</style>
+</head>
+
+<body>
+
+<h1 style="text-align:center">🚗 سوق السيارات V2</h1>
+
+<div class="container">
+
+<h3>👤 الحساب</h3>
+<input id="email" placeholder="Email">
+<input id="pass" type="password" placeholder="Password">
+<input id="username" placeholder="اسمك">
+
+<button onclick="signup()">إنشاء حساب</button>
+<button onclick="login()">دخول</button>
+
+<hr>
+
+<h3>🔍 فلتر السعر</h3>
+<input id="min" placeholder="أقل سعر">
+<input id="max" placeholder="أعلى سعر">
+
+<hr>
+
+<h3>🚘 إضافة سيارة</h3>
+<input id="name" placeholder="اسم السيارة">
+<input id="price" placeholder="السعر">
+<input id="city" placeholder="المدينة">
+<input id="img" placeholder="رابط الصورة">
+
+<button onclick="addCar()">نشر السيارة</button>
+
+<h3>📦 السيارات</h3>
+<div id="cars"></div>
+
+</div>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+
 <script>
-// إعداد Firebase الحقيقي
 const firebaseConfig = {
   apiKey: "AIzaSyA_gDWHVyimHWnTXxwQ0IQ83PIofcxdChU",
   authDomain: "cars-market-72a30.firebaseapp.com",
@@ -7,60 +99,125 @@ const firebaseConfig = {
   storageBucket: "cars-market-72a30.firebasestorage.app",
   messagingSenderId: "1081449779984",
   appId: "1:1081449779984:web:82ee9b6290ce10926ecb95",
-  measurementId: "G-FJG16J8PSP"
 };
 
 firebase.initializeApp(firebaseConfig);
+
 const auth = firebase.auth();
 const db = firebase.firestore();
 
+let currentUser = null;
+let allCars = [];
+
+// عناصر
+const email = document.getElementById("email");
+const pass = document.getElementById("pass");
+const username = document.getElementById("username");
+
+const name = document.getElementById("name");
+const price = document.getElementById("price");
+const city = document.getElementById("city");
+const img = document.getElementById("img");
+
+const carsDiv = document.getElementById("cars");
+
 // تسجيل
 function signup(){
-  auth.createUserWithEmailAndPassword(
-    email.value,
-    pass.value
-  ).then(()=>{
-    alert("تم التسجيل بنجاح")
-  }).catch(err=>{
-    alert(err.message)
-  })
+  auth.createUserWithEmailAndPassword(email.value, pass.value)
+  .then(u=>{
+    currentUser = u.user;
+    alert("تم إنشاء الحساب");
+  });
 }
 
 // دخول
 function login(){
-  auth.signInWithEmailAndPassword(
-    email.value,
-    pass.value
-  ).then(()=>{
-    alert("تم الدخول")
-  }).catch(err=>{
-    alert(err.message)
-  })
+  auth.signInWithEmailAndPassword(email.value, pass.value)
+  .then(u=>{
+    currentUser = u.user;
+    alert("تم الدخول");
+  });
 }
 
 // إضافة سيارة
 function addCar(){
   db.collection("cars").add({
-    name: name.value,
-    price: price.value
-  }).then(()=>{
-    alert("تم نشر السيارة")
-  })
+    name:name.value,
+    price:Number(price.value),
+    city:city.value,
+    img:img.value,
+    likes:0,
+    comments:[],
+    time:Date.now()
+  });
 }
 
-// عرض السيارات
-db.collection("cars").onSnapshot(snap=>{
-  cars.innerHTML = ""
+// إعجاب
+function likeCar(id,likes){
+  db.collection("cars").doc(id).update({
+    likes:likes+1
+  });
+}
 
+// تعليق
+function addComment(id){
+  let text = prompt("اكتب تعليقك:");
+  if(!text) return;
+
+  db.collection("cars").doc(id).update({
+    comments: firebase.firestore.FieldValue.arrayUnion(text)
+  });
+}
+
+// عرض البيانات
+db.collection("cars").orderBy("time","desc")
+.onSnapshot(snap=>{
+  allCars = [];
   snap.forEach(doc=>{
-    let c = doc.data()
+    allCars.push({id:doc.id,...doc.data()});
+  });
+  render();
+});
 
-    cars.innerHTML += `
+// عرض + فلتر
+function render(){
+  let min = Number(document.getElementById("min").value) || 0;
+  let max = Number(document.getElementById("max").value) || 999999999;
+
+  carsDiv.innerHTML="";
+
+  allCars
+  .filter(c=>c.price>=min && c.price<=max)
+  .forEach(c=>{
+
+    carsDiv.innerHTML += `
       <div class="car">
-        <h3>${c.name}</h3>
-        <p>${c.price} دج</p>
+        <h3>🚘 ${c.name}</h3>
+        <p>💰 ${c.price} دج</p>
+        <p>📍 ${c.city}</p>
+
+        ${c.img ? `<img src="${c.img}" style="width:100%;border-radius:10px">` : ""}
+
+        <button onclick="likeCar('${c.id}',${c.likes})">
+          ❤️ ${c.likes}
+        </button>
+
+        <button onclick="addComment('${c.id}')">
+          💬 تعليق
+        </button>
+
+        <div>
+          ${(c.comments||[]).map(cm=>`
+            <div class="comment">💬 ${cm}</div>
+          `).join("")}
+        </div>
       </div>
-    `
-  })
-})
+    `;
+  });
+}
 </script>
+
+</body>
+</html>
+
+    
