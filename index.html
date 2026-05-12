@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<title>سوق السيارات</title>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+<style>
+body{font-family:Arial;background:#0f172a;color:white;text-align:center}
+input{padding:10px;margin:5px;width:200px}
+button{padding:10px;background:#38bdf8;border:none;color:black}
+.car{background:#1e293b;margin:10px;padding:10px;border-radius:10px}
+</style>
+</head>
+
+<body>
+
+<h1>🚗 سوق السيارات</h1>
+
+<!-- تسجيل الدخول -->
+<div>
+  <h2>تسجيل / دخول</h2>
+  <input id="email" placeholder="الإيميل">
+  <input id="pass" type="password" placeholder="كلمة المرور">
+  <br>
+  <button onclick="signup()">تسجيل</button>
+  <button onclick="login()">دخول</button>
+</div>
+
+<hr>
+
+<!-- إضافة سيارة -->
+<div>
+  <h2>إضافة سيارة</h2>
+  <input id="name" placeholder="اسم السيارة">
+  <input id="price" placeholder="السعر">
+  <button onclick="addCar()">نشر</button>
+</div>
+
+<!-- عرض السيارات -->
+<div id="cars"></div>
+
+<script>
+// إعداد Firebase (لازم تعوضه بمعلوماتك)
+const firebaseConfig = {
+  apiKey: "YOUR_KEY",
+  authDomain: "YOUR_DOMAIN",
+  projectId: "YOUR_ID"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+// تسجيل
+function signup(){
+  auth.createUserWithEmailAndPassword(
+    email.value, pass.value
+  ).then(()=>alert("تم التسجيل"))
+}
+
+// دخول
+function login(){
+  auth.signInWithEmailAndPassword(
+    email.value, pass.value
+  ).then(()=>alert("تم الدخول"))
+}
+
+// إضافة سيارة
+function addCar(){
+  db.collection("cars").add({
+    name: name.value,
+    price: price.value
+  })
+}
+
+// عرض السيارات
+db.collection("cars").onSnapshot(snap=>{
+  cars.innerHTML = ""
+  snap.forEach(doc=>{
+    let c = doc.data()
+    cars.innerHTML += `
+      <div class="car">
+        <h3>${c.name}</h3>
+        <p>${c.price} دج</p>
+      </div>
+    `
+  })
+})
+</script>
+
+</body>
+</html>
