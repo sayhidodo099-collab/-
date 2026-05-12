@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<title>تفاصيل السيارة</title>
+
+<style>
+body{
+margin:0;
+font-family:Arial;
+background:#0f172a;
+color:white;
+direction:rtl;
+padding:20px;
+}
+
+img{
+width:100%;
+border-radius:15px;
+}
+
+.box{
+background:#1e293b;
+padding:15px;
+border-radius:12px;
+margin-top:15px;
+}
+</style>
+</head>
+
+<body>
+
+<div id="data"></div>
+
+<script>
+let car = JSON.parse(localStorage.getItem("car"));
+
+document.getElementById("data").innerHTML = `
+<h2>🚗 ${car.name}</h2>
+
+<img src="${car.img}">
+
+<div class="box">
+<p>💰 ${car.price} دج</p>
+<p>📍 ${car.city}</p>
+<p>👤 ${car.ownerName || "غير معروف"}</p>
+</div>
+`;
+</script>
+
+</body>
+</html>
