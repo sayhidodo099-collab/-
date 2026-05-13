@@ -3,13 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🚗 سوق طولقة السيارات</title>
+<title>Car Market Pro - Cars</title>
+
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
 
 <style>
 body{
 margin:0;
 font-family:Arial;
-background:#0f172a;
+background:#0b1220;
 color:white;
 direction:rtl;
 }
@@ -18,187 +22,136 @@ header{
 background:#111827;
 padding:15px;
 text-align:center;
-font-size:22px;
-font-weight:bold;
+font-size:20px;
 color:#22c55e;
 position:sticky;
 top:0;
 }
 
-.container{max-width:1100px;margin:auto;padding:15px;}
+.container{
+max-width:1000px;
+margin:auto;
+padding:10px;
+}
 
 .box{
 background:#1e293b;
-padding:15px;
+padding:10px;
+margin:10px 0;
 border-radius:12px;
-margin-top:15px;
 }
 
 input{
 width:100%;
 padding:10px;
-margin-top:8px;
+margin:5px 0;
 border:none;
 border-radius:8px;
 background:#334155;
 color:white;
 }
 
-button{
-width:100%;
-padding:12px;
-margin-top:10px;
-border:none;
-border-radius:10px;
-background:#22c55e;
-color:white;
-font-weight:bold;
-cursor:pointer;
-}
-
 .grid{
 display:grid;
 grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
-gap:15px;
-margin-top:20px;
+gap:10px;
+margin-top:10px;
 }
 
-.car{
+.card{
 background:#1e293b;
 border-radius:12px;
 overflow:hidden;
-cursor:pointer;
 transition:0.2s;
+cursor:pointer;
 }
 
-.car:hover{transform:scale(1.03);}
+.card:hover{
+transform:scale(1.03);
+}
 
-.car img{
+.card img{
 width:100%;
-height:170px;
+height:160px;
 object-fit:cover;
 }
 
-.car-body{padding:10px;}
+.card-body{
+padding:10px;
+}
 
-.price{color:#22c55e;font-weight:bold;}
-.small{color:#cbd5e1;font-size:13px;}
+.price{
+color:#22c55e;
+font-weight:bold;
+}
+
+.small{
+font-size:12px;
+color:#94a3b8;
+}
+
+.btn{
+padding:8px;
+width:100%;
+border:none;
+border-radius:8px;
+cursor:pointer;
+font-weight:bold;
+}
+
+.delete{
+background:#ef4444;
+color:white;
+}
 </style>
 </head>
 
 <body>
 
-<header>🚗 سوق طولقة السيارات</header>
+<header>🚗 Car Market Pro MAX - Live</header>
 
 <div class="container">
 
 <div class="box">
-<h3>👤 الحساب</h3>
-<input id="email" placeholder="Email">
-<input id="pass" type="password" placeholder="Password">
-<input id="username" placeholder="اسمك">
-
-<button onclick="signup()">إنشاء حساب</button>
-<button onclick="login()">دخول</button>
-</div>
-
-<div class="box">
-<h3>🔍 بحث</h3>
-<input id="search" placeholder="ابحث..." onkeyup="render()">
+<h3>🔍 البحث المتقدم</h3>
+<input id="search" placeholder="ابحث عن سيارة..." onkeyup="render()">
 <input id="min" placeholder="أقل سعر" onkeyup="render()">
 <input id="max" placeholder="أعلى سعر" onkeyup="render()">
-</div>
-
-<div class="box">
-<h3>🚘 إضافة سيارة</h3>
-<input id="name" placeholder="اسم السيارة">
-<input id="price" placeholder="السعر">
-<input id="city" placeholder="المدينة">
-<input type="file" id="file">
-
-<button onclick="addCar()">نشر السيارة</button>
 </div>
 
 <div id="cars" class="grid"></div>
 
 </div>
 
-<!-- Firebase -->
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
-
 <script>
+// Firebase
 const firebaseConfig = {
 apiKey:"AIzaSyA_gDWHVyimHWnTXxwQ0IQ83PIofcxdChU",
 authDomain:"cars-market-72a30.firebaseapp.com",
 projectId:"cars-market-72a30",
-storageBucket:"cars-market-72a30.appspot.com",
-messagingSenderId:"1081449779984",
-appId:"1:1081449779984:web:82ee9b6290ce10926ecb95"
+storageBucket:"cars-market-72a30.appspot.com"
 };
 
 firebase.initializeApp(firebaseConfig);
 
-const auth = firebase.auth();
-const db = firebase.firestore();
-const storage = firebase.storage();
+const db=firebase.firestore();
+const auth=firebase.auth();
 
-let currentUser=null;
-let currentUserName="";
+let user=null;
+let isAdmin=false;
 
-function signup(){
-auth.createUserWithEmailAndPassword(email.value,pass.value)
-.then(u=>{
-currentUser=u.user;
-currentUserName=username.value;
-alert("تم إنشاء الحساب");
-});
-}
+const ADMIN_EMAIL="admin@gmail.com";
 
-function login(){
-auth.signInWithEmailAndPassword(email.value,pass.value)
-.then(u=>{
-currentUser=u.user;
-currentUserName=username.value;
-alert("تم الدخول");
-});
-}
-
-async function upload(file){
-let ref=storage.ref("cars/"+Date.now()+file.name);
-await ref.put(file);
-return await ref.getDownloadURL();
-}
-
-async function addCar(){
-if(!currentUser){alert("سجل دخول");return;}
-
-let file=document.getElementById("file").files[0];
-let img="";
-
-if(file) img=await upload(file);
-
-await db.collection("cars").add({
-name:name.value,
-price:Number(price.value),
-city:city.value,
-img:img,
-time:Date.now(),
-ownerName:currentUserName
+// auth state
+auth.onAuthStateChanged(u=>{
+user=u;
+isAdmin = u && u.email===ADMIN_EMAIL;
 });
 
-alert("تم النشر");
-}
-
-function openCar(id){
-window.location.href="car.html?id="+id;
-}
-
+// load cars
 let allCars=[];
 
-db.collection("cars").orderBy("time","desc")
+db.collection("cars").orderBy("createdAt","desc")
 .onSnapshot(snap=>{
 allCars=[];
 snap.forEach(d=>{
@@ -207,32 +160,57 @@ allCars.push({id:d.id,...d.data()});
 render();
 });
 
+// delete
+async function deleteCar(id,ownerId){
+if(!user) return;
+
+if(user.uid!==ownerId && !isAdmin){
+alert("غير مسموح");
+return;
+}
+
+await db.collection("cars").doc(id).delete();
+}
+
+// render
 function render(){
 
-let min=Number(document.getElementById("min").value)||0;
-let max=Number(document.getElementById("max").value)||999999999;
-let search=document.getElementById("search").value.toLowerCase();
+let s=(search.value||"").toLowerCase();
+let min=Number(min.value)||0;
+let max=Number(max.value)||999999999;
 
 cars.innerHTML="";
 
 allCars
-.filter(c=>c.price>=min && c.price<=max && c.name.toLowerCase().includes(search))
+.filter(c=>
+c.price>=min &&
+c.price<=max &&
+(c.name||"").toLowerCase().includes(s)
+)
 .forEach(c=>{
 
 cars.innerHTML+=`
-<div class="car" onclick="openCar('${c.id}')">
+<div class="card">
+<img src="${c.img}" onclick="openCar('${c.id}')">
 
-<img src="${c.img || 'https://images.unsplash.com/photo-1503376780353-7e6692767b70'}">
-
-<div class="car-body">
+<div class="card-body">
 <h3>${c.name}</h3>
 <div class="price">${c.price} دج</div>
 <div class="small">📍 ${c.city}</div>
-<div class="small">👤 ${c.ownerName || 'مستخدم'}</div>
-</div>
 
-</div>`;
+${user && (user.uid===c.ownerId || isAdmin)
+? `<button class="btn delete" onclick="deleteCar('${c.id}','${c.ownerId}')">🗑 حذف</button>`
+:""}
+
+</div>
+</div>
+`;
 });
+}
+
+// open (future page)
+function openCar(id){
+window.location.href="car.html?id="+id;
 }
 </script>
 
