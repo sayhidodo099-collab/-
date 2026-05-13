@@ -2,69 +2,76 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>سوق السيارات</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Car Market Pro MAX Secure</title>
 
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
 
 <style>
-body{font-family:Arial;background:#0f172a;color:white;margin:0;text-align:center}
+body{margin:0;font-family:Arial;background:#0b1220;color:white;direction:rtl}
+header{padding:15px;background:#111827;text-align:center;color:#22c55e;font-size:22px}
+.container{max-width:1000px;margin:auto;padding:10px}
 
-input,button{padding:10px;margin:5px;border:none;border-radius:8px}
+.box{background:#1e293b;padding:12px;margin:10px 0;border-radius:12px}
+input,button{width:100%;padding:10px;margin:5px 0;border:none;border-radius:8px}
+button{background:#22c55e;color:white;font-weight:bold;cursor:pointer}
 
-.box{background:#111827;margin:10px;padding:10px;border-radius:10px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px}
+.card{background:#1e293b;border-radius:12px;overflow:hidden;cursor:pointer}
+.card img{width:100%;height:170px;object-fit:cover}
 
-.car{background:#1e293b;margin:10px auto;width:90%;padding:10px;border-radius:10px}
+.small{font-size:12px;color:#94a3b8}
+.price{color:#22c55e;font-weight:bold}
 
-.car img{width:100%;height:200px;object-fit:cover;border-radius:10px;cursor:pointer}
-
-.hidden{display:none}
+.admin{display:none;color:#facc15;font-weight:bold}
 </style>
 </head>
 
 <body>
 
-<h1>🚗 سوق السيارات</h1>
+<header>🚗 Car Market Pro MAX 🔐</header>
+
+<div class="container">
 
 <div class="box">
-<input id="username" placeholder="اسم المستخدم">
-<input id="email" placeholder="الإيميل">
-<input id="pass" placeholder="كلمة السر" type="password">
+<h3>👤 الحساب</h3>
+<input id="email" placeholder="Email">
+<input id="pass" type="password" placeholder="Password">
 <button onclick="signup()">تسجيل</button>
 <button onclick="login()">دخول</button>
 <button onclick="logout()">خروج</button>
-<p id="userInfo"></p>
+<p id="info"></p>
+<p id="admin" class="admin">🛡️ Admin Mode</p>
 </div>
 
-<div class="box hidden" id="addBox">
-<h3>إضافة سيارة</h3>
+<div class="box">
+<h3>🚘 إضافة سيارة</h3>
 <input id="name" placeholder="اسم السيارة">
 <input id="price" placeholder="السعر">
 <input id="city" placeholder="المدينة">
 <input type="file" id="file">
-<button onclick="addCar()">نشر</button>
+<button onclick="addCar()">نشر السيارة</button>
 </div>
 
 <div class="box">
-<input id="search" placeholder="بحث">
-<input id="min" placeholder="أقل سعر">
-<input id="max" placeholder="أعلى سعر">
+<input id="search" placeholder="بحث..." onkeyup="render()">
+<input id="min" placeholder="أقل سعر" onkeyup="render()">
+<input id="max" placeholder="أعلى سعر" onkeyup="render()">
 </div>
 
-<div id="cars">جاري التحميل...</div>
+<div class="grid" id="cars"></div>
 
-<div class="box hidden" id="details"></div>
+</div>
 
 <script>
-// 🔥 Firebase
-const firebaseConfig = {
+const firebaseConfig={
 apiKey:"AIzaSyA_gDWHVyimHWnTXxwQ0IQ83PIofcxdChU",
 authDomain:"cars-market-72a30.firebaseapp.com",
 projectId:"cars-market-72a30",
 storageBucket:"cars-market-72a30.appspot.com",
-messagingSenderId:"1081449779984",
 appId:"1:1081449779984:web:82ee9b6290ce10926ecb95"
 };
 
@@ -74,151 +81,130 @@ const auth=firebase.auth();
 const db=firebase.firestore();
 const storage=firebase.storage();
 
-const carsDiv=document.getElementById("cars");
-const addBox=document.getElementById("addBox");
-const details=document.getElementById("details");
-
 let user=null;
+let isAdmin=false;
 let allCars=[];
 
-// 👤 حالة المستخدم
+// 🔐 Admin email (غيره إذا تريد)
+const ADMIN_EMAIL="admin@gmail.com";
+
+// AUTH
 auth.onAuthStateChanged(u=>{
 user=u;
 if(user){
-document.getElementById("userInfo").innerText="👤 "+user.email;
-addBox.classList.remove("hidden");
+document.getElementById("info").innerText="👤 "+user.email;
+isAdmin = user.email===ADMIN_EMAIL;
+document.getElementById("admin").style.display=isAdmin?"block":"none";
 }else{
-document.getElementById("userInfo").innerText="غير مسجل";
-addBox.classList.add("hidden");
+document.getElementById("info").innerText="غير مسجل";
 }
 });
 
-// 🧾 تسجيل
-async function signup(){
-await auth.createUserWithEmailAndPassword(email.value,pass.value);
-
-await db.collection("users").doc(auth.currentUser.uid).set({
-name:username.value,
-email:email.value,
-createdAt:Date.now()
-});
-
-alert("تم التسجيل");
+// SIGNUP
+function signup(){
+auth.createUserWithEmailAndPassword(email.value,pass.value);
 }
 
-// 🔑 دخول
-async function login(){
-await auth.signInWithEmailAndPassword(email.value,pass.value);
-alert("تم الدخول");
+// LOGIN
+function login(){
+auth.signInWithEmailAndPassword(email.value,pass.value);
 }
 
-// 🚪 خروج
+// LOGOUT
 function logout(){
 auth.signOut();
 }
 
-// 📸 رفع صورة
+// 🔥 Upload image
 async function upload(file){
-let ref=storage.ref("cars/"+Date.now()+"_"+file.name);
+let ref=storage.ref("cars/"+Date.now()+file.name);
 await ref.put(file);
 return await ref.getDownloadURL();
 }
 
-// 🚗 إضافة سيارة
+// 🚗 ADD CAR (secure validation)
 async function addCar(){
+if(!user) return alert("سجل دخول");
 
-if(!user) return alert("سجل الدخول");
+if(!name.value || !price.value || !city.value)
+return alert("أكمل البيانات");
+
+if(Number(price.value)<=0)
+return alert("سعر غير صالح");
 
 let file=document.getElementById("file").files[0];
-let img=file?await upload(file):"https://images.unsplash.com/photo-1503376780353-7e6692767b70";
+
+let img=file?
+await upload(file):
+"https://images.unsplash.com/photo-1503376780353-7e6692767b70";
 
 await db.collection("cars").add({
-name:name.value,
+name:name.value.trim(),
 price:Number(price.value),
-city:city.value,
+city:city.value.trim(),
 img,
 ownerId:user.uid,
 ownerEmail:user.email,
-views:0,
-createdAt:Date.now()
+createdAt:Date.now(),
+views:0
 });
 
 alert("تم النشر");
 }
 
-// 👁 فتح تفاصيل
-async function openCar(id){
-let doc=await db.collection("cars").doc(id).get();
-let c=doc.data();
-
-await db.collection("cars").doc(id).update({
-views:firebase.firestore.FieldValue.increment(1)
-});
-
-details.classList.remove("hidden");
-
-details.innerHTML=`
-<h2>${c.name}</h2>
-<img src="${c.img}" style="width:100%">
-<p>💰 ${c.price}</p>
-<p>📍 ${c.city}</p>
-<p>👁 ${c.views}</p>
-<p>📧 ${c.ownerEmail}</p>
-<button onclick="details.classList.add('hidden')">إغلاق</button>
-`;
-}
-
-// 🗑 حذف
-async function deleteCar(id,owner){
-if(user.uid!==owner) return alert("غير مسموح");
-if(confirm("حذف؟")){
-await db.collection("cars").doc(id).delete();
-}
-}
-
-// 📡 تحميل مباشر
-db.collection("cars").onSnapshot(s=>{
+// 📡 LOAD
+db.collection("cars").orderBy("createdAt","desc")
+.onSnapshot(s=>{
 allCars=[];
 s.forEach(d=>allCars.push({id:d.id,...d.data()}));
 render();
 });
 
-// 🎨 عرض
+// 🗑 DELETE (admin + owner)
+async function deleteCar(id,ownerId){
+if(!user) return;
+
+if(user.uid!==ownerId && !isAdmin)
+return alert("غير مسموح");
+
+await db.collection("cars").doc(id).delete();
+}
+
+// 🎨 RENDER
 function render(){
 
-let search=(document.getElementById("search").value||"").toLowerCase();
-let min=Number(document.getElementById("min").value)||0;
-let max=Number(document.getElementById("max").value)||999999999;
+let s=(search.value||"").toLowerCase();
+let min=Number(min.value)||0;
+let max=Number(max.value)||999999999;
 
-carsDiv.innerHTML="";
+cars.innerHTML="";
 
 allCars
 .filter(c=>
 c.price>=min &&
 c.price<=max &&
-(c.name||"").toLowerCase().includes(search)
+(c.name||"").toLowerCase().includes(s)
 )
 .forEach(c=>{
-
-carsDiv.innerHTML+=`
-<div class="car">
-
+cars.innerHTML+=`
+<div class="card">
 <img src="${c.img}" onclick="openCar('${c.id}')">
-
+<div style="padding:10px">
 <h3>${c.name}</h3>
-<p>💰 ${c.price}</p>
-<p>📍 ${c.city}</p>
-<p>👁 ${c.views}</p>
+<div class="price">${c.price} دج</div>
+<div class="small">📍 ${c.city}</div>
 
-${
-user && user.uid===c.ownerId
+${user && (user.uid===c.ownerId || isAdmin)
 ? `<button onclick="deleteCar('${c.id}','${c.ownerId}')">🗑 حذف</button>`
-:""
+:""}
+</div>
+</div>`;
+});
 }
 
-</div>
-`;
-});
+// 🔍 OPEN
+function openCar(id){
+alert("صفحة التفاصيل سيتم تطويرها في المرحلة التالية 🚀");
 }
 </script>
 
