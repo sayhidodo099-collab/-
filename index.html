@@ -1,4 +1,64 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<title>سوق السيارات</title>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+
+<style>
+body{font-family:Arial;background:#0f172a;color:white;margin:0;text-align:center}
+
+input,button{padding:10px;margin:5px;border:none;border-radius:8px}
+
+.box{background:#111827;margin:10px;padding:10px;border-radius:10px}
+
+.car{background:#1e293b;margin:10px auto;width:90%;padding:10px;border-radius:10px}
+
+.car img{width:100%;height:200px;object-fit:cover;border-radius:10px;cursor:pointer}
+
+.hidden{display:none}
+</style>
+</head>
+
+<body>
+
+<h1>🚗 سوق السيارات</h1>
+
+<div class="box">
+<input id="username" placeholder="اسم المستخدم">
+<input id="email" placeholder="الإيميل">
+<input id="pass" placeholder="كلمة السر" type="password">
+<button onclick="signup()">تسجيل</button>
+<button onclick="login()">دخول</button>
+<button onclick="logout()">خروج</button>
+<p id="userInfo"></p>
+</div>
+
+<div class="box hidden" id="addBox">
+<h3>إضافة سيارة</h3>
+<input id="name" placeholder="اسم السيارة">
+<input id="price" placeholder="السعر">
+<input id="city" placeholder="المدينة">
+<input type="file" id="file">
+<button onclick="addCar()">نشر</button>
+</div>
+
+<div class="box">
+<input id="search" placeholder="بحث">
+<input id="min" placeholder="أقل سعر">
+<input id="max" placeholder="أعلى سعر">
+</div>
+
+<div id="cars">جاري التحميل...</div>
+
+<div class="box hidden" id="details"></div>
+
 <script>
+// 🔥 Firebase
 const firebaseConfig = {
 apiKey:"AIzaSyA_gDWHVyimHWnTXxwQ0IQ83PIofcxdChU",
 authDomain:"cars-market-72a30.firebaseapp.com",
@@ -10,271 +70,157 @@ appId:"1:1081449779984:web:82ee9b6290ce10926ecb95"
 
 firebase.initializeApp(firebaseConfig);
 
-const auth = firebase.auth();
-const db = firebase.firestore();
-const storage = firebase.storage();
+const auth=firebase.auth();
+const db=firebase.firestore();
+const storage=firebase.storage();
 
-let currentUser = null;
-let currentUserData = null;
-let allCars = [];
+const carsDiv=document.getElementById("cars");
+const addBox=document.getElementById("addBox");
+const details=document.getElementById("details");
 
-auth.onAuthStateChanged(async(user)=>{
+let user=null;
+let allCars=[];
 
+// 👤 حالة المستخدم
+auth.onAuthStateChanged(u=>{
+user=u;
 if(user){
-
-currentUser = user;
-
-let doc = await db.collection("users").doc(user.uid).get();
-
-if(doc.exists){
-currentUserData = doc.data();
-}
-
-alert("مرحبا " + (currentUserData?.name || "مستخدم"));
-
+document.getElementById("userInfo").innerText="👤 "+user.email;
+addBox.classList.remove("hidden");
 }else{
-currentUser = null;
-currentUserData = null;
+document.getElementById("userInfo").innerText="غير مسجل";
+addBox.classList.add("hidden");
 }
-
 });
 
+// 🧾 تسجيل
 async function signup(){
+await auth.createUserWithEmailAndPassword(email.value,pass.value);
 
-if(!email.value || !pass.value || !username.value){
-alert("املأ جميع الخانات");
-return;
-}
-
-try{
-
-let result = await auth.createUserWithEmailAndPassword(
-email.value,
-pass.value
-);
-
-await db.collection("users").doc(result.user.uid).set({
-name: username.value,
-email: email.value,
-createdAt: Date.now(),
-isAdmin:false
+await db.collection("users").doc(auth.currentUser.uid).set({
+name:username.value,
+email:email.value,
+createdAt:Date.now()
 });
 
-alert("تم إنشاء الحساب");
-
-}catch(e){
-alert(e.message);
+alert("تم التسجيل");
 }
 
-}
-
+// 🔑 دخول
 async function login(){
-
-try{
-
-await auth.signInWithEmailAndPassword(
-email.value,
-pass.value
-);
-
-alert("تم تسجيل الدخول");
-
-}catch(e){
-alert(e.message);
+await auth.signInWithEmailAndPassword(email.value,pass.value);
+alert("تم الدخول");
 }
 
+// 🚪 خروج
+function logout(){
+auth.signOut();
 }
 
+// 📸 رفع صورة
 async function upload(file){
-
-const ref = storage.ref(
-"cars/" + Date.now() + "_" + file.name
-);
-
+let ref=storage.ref("cars/"+Date.now()+"_"+file.name);
 await ref.put(file);
-
 return await ref.getDownloadURL();
-
 }
 
+// 🚗 إضافة سيارة
 async function addCar(){
 
-if(!currentUser){
-alert("سجل الدخول أولا");
-return;
-}
+if(!user) return alert("سجل الدخول");
 
-if(!name.value || !price.value || !city.value){
-alert("املأ معلومات السيارة");
-return;
-}
-
-let img = "";
-
-const file = document.getElementById("file").files[0];
-
-if(file){
-img = await upload(file);
-}
-
-try{
+let file=document.getElementById("file").files[0];
+let img=file?await upload(file):"https://images.unsplash.com/photo-1503376780353-7e6692767b70";
 
 await db.collection("cars").add({
-
-name: name.value,
-price: Number(price.value),
-city: city.value,
-
-img: img ||
-
-"https://images.unsplash.com/photo-1503376780353-7e6692767b70",
-
-ownerId: currentUser.uid,
-
-ownerName: currentUserData?.name || "مستخدم",
-
-ownerEmail: currentUser.email,
-
+name:name.value,
+price:Number(price.value),
+city:city.value,
+img,
+ownerId:user.uid,
+ownerEmail:user.email,
 views:0,
-
-favorites:0,
-
-createdAt: Date.now()
-
+createdAt:Date.now()
 });
 
-alert("تم نشر السيارة بنجاح");
-
-name.value="";
-price.value="";
-city.value="";
-file.value="";
-
-}catch(e){
-alert(e.message);
+alert("تم النشر");
 }
 
-}
+// 👁 فتح تفاصيل
+async function openCar(id){
+let doc=await db.collection("cars").doc(id).get();
+let c=doc.data();
 
-function openCar(id){
-
-db.collection("cars").doc(id).update({
-views: firebase.firestore.FieldValue.increment(1)
+await db.collection("cars").doc(id).update({
+views:firebase.firestore.FieldValue.increment(1)
 });
 
-window.location.href =
-"car.html?id=" + id;
+details.classList.remove("hidden");
 
+details.innerHTML=`
+<h2>${c.name}</h2>
+<img src="${c.img}" style="width:100%">
+<p>💰 ${c.price}</p>
+<p>📍 ${c.city}</p>
+<p>👁 ${c.views}</p>
+<p>📧 ${c.ownerEmail}</p>
+<button onclick="details.classList.add('hidden')">إغلاق</button>
+`;
 }
 
-async function deleteCar(id){
-
-if(confirm("حذف السيارة؟")){
-
+// 🗑 حذف
+async function deleteCar(id,owner){
+if(user.uid!==owner) return alert("غير مسموح");
+if(confirm("حذف؟")){
 await db.collection("cars").doc(id).delete();
-
+}
 }
 
-}
-
-db.collection("cars")
-.orderBy("createdAt","desc")
-.onSnapshot((snap)=>{
-
-allCars = [];
-
-snap.forEach((doc)=>{
-
-allCars.push({
-id:doc.id,
-...doc.data()
-});
-
-});
-
+// 📡 تحميل مباشر
+db.collection("cars").onSnapshot(s=>{
+allCars=[];
+s.forEach(d=>allCars.push({id:d.id,...d.data()}));
 render();
-
 });
 
+// 🎨 عرض
 function render(){
 
-const search =
-document.getElementById("search")
-.value
-.toLowerCase();
+let search=(document.getElementById("search").value||"").toLowerCase();
+let min=Number(document.getElementById("min").value)||0;
+let max=Number(document.getElementById("max").value)||999999999;
 
-const min =
-Number(document.getElementById("min").value) || 0;
-
-const max =
-Number(document.getElementById("max").value) || 999999999;
-
-cars.innerHTML = "";
+carsDiv.innerHTML="";
 
 allCars
-
-.filter(car =>
-
-car.price >= min &&
-car.price <= max &&
-
-car.name.toLowerCase().includes(search)
-
+.filter(c=>
+c.price>=min &&
+c.price<=max &&
+(c.name||"").toLowerCase().includes(search)
 )
+.forEach(c=>{
 
-.forEach(car=>{
-
-cars.innerHTML += `
-
+carsDiv.innerHTML+=`
 <div class="car">
 
-<img
-src="${car.img}"
-onclick="openCar('${car.id}')"
->
+<img src="${c.img}" onclick="openCar('${c.id}')">
 
-<div class="car-body">
-
-<h3>${car.name}</h3>
-
-<div class="price">
-${car.price.toLocaleString()} دج
-</div>
-
-<div class="small">
-📍 ${car.city}
-</div>
-
-<div class="small">
-👤 ${car.ownerName}
-</div>
-
-<div class="small">
-👁 ${car.views || 0} مشاهدة
-</div>
+<h3>${c.name}</h3>
+<p>💰 ${c.price}</p>
+<p>📍 ${c.city}</p>
+<p>👁 ${c.views}</p>
 
 ${
-currentUser &&
-currentUser.uid === car.ownerId
-
-?
-
-`<button onclick="deleteCar('${car.id}')">
-🗑 حذف
-</button>`
-
-:
-
-""
+user && user.uid===c.ownerId
+? `<button onclick="deleteCar('${c.id}','${c.ownerId}')">🗑 حذف</button>`
+:""
 }
 
 </div>
-
-</div>
-
 `;
-
 });
-
 }
 </script>
+
+</body>
+</html>
